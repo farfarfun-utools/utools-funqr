@@ -1,0 +1,42 @@
+name: CI
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['docs/**', '*.md']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - name: Check and build
+        run: sh build.sh
+      - name: Test with Node Web Storage enabled
+        run: pnpm test
+        env:
+          NODE_OPTIONS: --experimental-webstorage
+      - uses: actions/upload-artifact@v4
+        if: matrix.node == '22'
+        with:
+          name: utools-funqr
+          path: |
+            utools/dist
+            utools/plugin.json
+            utools/preload.js
+            utools/logo.png
+          if-no-files-found: error

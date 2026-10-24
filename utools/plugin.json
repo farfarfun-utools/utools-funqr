@@ -1,0 +1,16 @@
+{
+  "pluginName": "码上生花",
+  "version": "1.0.0",
+  "description": "码上生花 FunQR：离线识别二维码、文本与二维码互转，自定义配色、渐变、码点和 Logo，导出 PNG / SVG",
+  "author": "farfarfun",
+  "main": "dist/index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": { "height": 660 },
+  "features": [
+    { "code": "generate", "explain": "文本、网址生成二维码，并美化导出", "cmds": ["码上生花", "FunQR", "二维码", "生成二维码", "文本转二维码"] },
+    { "code": "decode", "explain": "从图片、剪贴板或截图中识别二维码内容", "cmds": ["识别二维码", "二维码识别", "扫码", "二维码转文本"] },
+    { "code": "text-qr", "explain": "将选中的文本转成二维码", "cmds": [{ "type": "over", "label": "生成二维码", "minLength": 1, "maxLength": 1200 }] }
+  ],
+  "platform": ["darwin", "win32", "linux"]
+}

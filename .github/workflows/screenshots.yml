@@ -1,0 +1,15 @@
+name: Screenshots
+on:
+  push:
+    branches: [master]
+    paths: ['src/**', 'scripts/**', 'utools/plugin.json', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', '.github/workflows/screenshots.yml']
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: screenshots
+  cancel-in-progress: false
+jobs:
+  screenshots:
+    uses: farfarfun-utools/.github/.github/workflows/screenshots.yml@master
