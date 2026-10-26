@@ -23,8 +23,7 @@ h1, h2, p { margin: 0; }
 .app-shell { max-width: 1180px; margin: 0 auto; padding: 0 26px; }
 .app-header { display: flex; align-items: center; gap: 14px; height: 72px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; }
-.brand-icon { display: grid; place-items: center; width: 41px; height: 41px; border-radius: 13px; background: var(--accent); color: var(--bg); }
-.brand-icon svg { width: 25px; height: 25px; }
+.brand-icon { width: 41px; height: 41px; object-fit: contain; }
 .brand h1 { font-size: 18px; letter-spacing: 2px; font-weight: 650; white-space: nowrap; }
 .brand h1 span { font-size: 10px; letter-spacing: .4px; font-weight: 500; color: var(--muted); margin-left: 4px; }
 .brand p { color: var(--muted); font-size: 10px; letter-spacing: 1.8px; margin-top: 3px; }

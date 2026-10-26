@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logoUrl from '../utools/logo.png'
 import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import Icon from './components/Icon.vue'
 import Generator from './components/Generator.vue'
@@ -50,7 +51,7 @@ onUnmounted(() => { alive = false; clearTimeout(toastTimer); media.removeEventLi
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <div class="brand"><span class="brand-icon"><Icon name="qr" /></span><div><h1>码上生花 <span>FunQR</span></h1><p>小小方寸，大有心意</p></div></div>
+      <div class="brand"><img class="brand-icon" :src="logoUrl" alt="" /><div><h1>码上生花 <span>FunQR</span></h1><p>小小方寸，大有心意</p></div></div>
       <nav class="view-switch" aria-label="二维码工具"><button :class="{ active: view === 'generate' }" :aria-pressed="view === 'generate'" @click="view = 'generate'"><Icon name="qr" />生成二维码</button><button :class="{ active: view === 'decode' }" :aria-pressed="view === 'decode'" @click="view = 'decode'"><Icon name="scan" />识别二维码</button></nav>
       <button class="icon-button theme-button" :aria-label="`主题：${themeNames[theme]}，点击切换`" :title="`主题：${themeNames[theme]}，点击切换`" @click="toggleTheme"><Icon :name="themeIcons[theme]" /></button>
     </header>
