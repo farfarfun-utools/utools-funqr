@@ -1,6 +1,6 @@
 {
   "name": "utools-funqr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "码上生花 FunQR：离线二维码识别、文本转二维码与二维码美化工具",
   "license": "MIT",
   "homepage": "https://farfarfun.github.io/packages/utools-funqr/",

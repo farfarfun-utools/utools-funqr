@@ -5,6 +5,12 @@
 
 ![生成二维码](docs/screenshots/home.png)
 
+## UPXS 安装与发布
+
+从 [v1.0.1 Release](https://github.com/farfarfun-utools/utools-funqr/releases/tag/v1.0.1) 下载 `utools-funqr-1.0.1.upxs`，导入 uTools 测试。也可在成功的 CI 中下载 `utools-funqr-upxs-preview` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
+
+项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `zqqonl7o`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
+
 ## 能做什么
 
 - **文本 → 二维码**：输入文字、网址、中文或 Emoji，即时预览；保留原始空格与换行。

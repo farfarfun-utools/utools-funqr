@@ -1,6 +1,6 @@
 {
   "pluginName": "码上生花",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "码上生花 FunQR：离线识别二维码、文本与二维码互转，自定义配色、渐变、码点和 Logo，导出 PNG / SVG",
   "author": "farfarfun",
   "main": "dist/index.html",
