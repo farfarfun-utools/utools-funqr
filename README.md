@@ -13,7 +13,7 @@
 
 ## AI / MCP 工具
 
-`generate_qr_png` 将文本离线生成并反向校验为 512 px PNG，返回图片 Data URL；不会保存或上传原文。需 uTools 8 的工具能力，第三方 Agent 还需由用户开启 uTools MCP 服务。
+`generate_qr_png` 将文本离线生成并反向校验为 512 px PNG，返回图片 Data URL。`decode_qr_image` 接受图片 Data URL 或本机绝对路径，离线返回二维码原文；不会自动打开识别出的链接，也不会保存或上传图片。需 uTools 8 的工具能力，第三方 Agent 还需由用户开启 uTools MCP 服务。
 
 ## 能做什么
 
