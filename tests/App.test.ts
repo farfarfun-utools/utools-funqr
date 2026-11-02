@@ -12,9 +12,11 @@ vi.mock('../src/lib/image', () => ({
 }))
 let app: VueWrapper
 let enter: (action: { code: string; payload?: unknown }) => void
+let tools: Map<string, (params: Record<string, unknown>) => unknown | Promise<unknown>>
 const generated = 'data:image/png;base64,dGVzdA=='
 enableAutoUnmount(afterEach)
 beforeEach(() => {
+  tools = new Map()
   vi.useFakeTimers()
   vi.stubGlobal('localStorage', jsdom.window.localStorage)
   localStorage.clear()
@@ -22,7 +24,7 @@ beforeEach(() => {
   vi.mocked(rasterize).mockResolvedValue({ toDataURL: () => generated } as unknown as HTMLCanvasElement)
   vi.mocked(decodeCanvas).mockResolvedValue('hello')
   vi.mocked(decodeImage).mockResolvedValue({ text: 'hello', preview: generated })
-  window.utools = { onPluginEnter: callback => { enter = callback }, copyImage: vi.fn(() => true), copyText: vi.fn(() => true) }
+  window.utools = { onPluginEnter: callback => { enter = callback }, registerTool: (name, handler) => { tools.set(name, handler) }, copyImage: vi.fn(() => true), copyText: vi.fn(() => true) }
   app = mount(App, { attachTo: document.body })
 })
 afterEach(() => { delete window.utools; delete window.funqr; vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetAllMocks() })
@@ -30,6 +32,16 @@ async function generate(text = 'hello') {
   await app.get('#qr-content').setValue(text)
   await vi.advanceTimersByTimeAsync(250)
 }
+
+it('AI 工具返回校验过的 PNG，不保存内容', async () => {
+  const tool = tools.get('generate_qr_png')!
+  expect(await tool({ text: 'hello' })).toEqual({ image: generated, mimeType: 'image/png', size: 512 })
+  expect(rasterize).toHaveBeenCalledWith(expect.stringContaining('<svg'), 512)
+  await expect(tool({ text: '' })).rejects.toThrow('先写点内容')
+  vi.mocked(decodeCanvas).mockResolvedValueOnce('different')
+  await expect(tool({ text: 'hello' })).rejects.toThrow('识别校验')
+  expect(localStorage.length).toBe(0)
+})
 
 it('空内容不生成示例二维码；校验成功后才允许导出', async () => {
   expect(app.get('.export-actions button').attributes('disabled')).toBeDefined()

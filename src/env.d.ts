@@ -8,5 +8,6 @@ interface Window {
     copyText?(text: string): boolean
     copyImage?(image: string): boolean
     isDarkColors?(): boolean
+    registerTool?(name: string, handler: (params: Record<string, unknown>) => unknown | Promise<unknown>): void
   }
 }
