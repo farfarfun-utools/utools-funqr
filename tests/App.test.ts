@@ -6,6 +6,7 @@ import App from '../src/App.vue'
 import { decodeCanvas, decodeImage, rasterize } from '../src/lib/image'
 
 vi.mock('../src/lib/image', () => ({
+  MAX_IMAGE_BYTES: 20 * 1024 * 1024,
   IMAGE_TYPES: ['image/png'],
   rasterize: vi.fn(), decodeCanvas: vi.fn(), decodeImage: vi.fn(),
   clipboardImage: vi.fn(), imageCanvas: vi.fn(), saveBlob: vi.fn(),
@@ -40,6 +41,20 @@ it('AI 工具返回校验过的 PNG，不保存内容', async () => {
   await expect(tool({ text: '' })).rejects.toThrow('先写点内容')
   vi.mocked(decodeCanvas).mockResolvedValueOnce('different')
   await expect(tool({ text: 'hello' })).rejects.toThrow('识别校验')
+  expect(localStorage.length).toBe(0)
+})
+
+it('AI 工具识别图片并只返回原文', async () => {
+  const tool = tools.get('decode_qr_image')!
+  const fetchImage = vi.fn(async () => ({ blob: async () => new Blob(['image'], { type: 'image/png' }) }))
+  vi.stubGlobal('fetch', fetchImage)
+  expect(await tool({ image: generated })).toEqual({ text: 'hello' })
+  expect(fetchImage).toHaveBeenCalledWith(generated)
+  window.funqr = { saveFile: vi.fn(), readImageFile: vi.fn(() => generated) }
+  expect(await tool({ path: '/tmp/code.png' })).toEqual({ text: 'hello' })
+  expect(window.funqr.readImageFile).toHaveBeenCalledWith('/tmp/code.png')
+  await expect(tool({ image: 'https://example.com/code.png' })).rejects.toThrow('图片数据无效')
+  await expect(tool({ image: generated, path: '/tmp/code.png' })).rejects.toThrow('二选一')
   expect(localStorage.length).toBe(0)
 })
 
@@ -84,10 +99,10 @@ it('过期的异步生成结果不能覆盖最新输入', async () => {
 })
 it('保存取消不报成功，磁盘错误会反馈', async () => {
   await generate()
-  window.funqr = { saveFile: vi.fn(() => false) }
+  window.funqr = { saveFile: vi.fn(() => false), readImageFile: vi.fn() }
   await app.get('.export-actions button').trigger('click')
   expect(app.find('.toast').exists()).toBe(false)
-  window.funqr.saveFile = () => { throw new Error('磁盘空间不足') }
+  window.funqr!.saveFile = () => { throw new Error('磁盘空间不足') }
   await app.get('.export-actions button').trigger('click')
   expect(app.get('[role="alert"]').text()).toContain('磁盘空间不足')
 })

@@ -5,7 +5,7 @@ import Icon from './components/Icon.vue'
 import Generator from './components/Generator.vue'
 import Scanner from './components/Scanner.vue'
 import { PRESETS, makeQrSvg } from './lib/qr'
-import { decodeCanvas, rasterize } from './lib/image'
+import { decodeCanvas, decodeImage, MAX_IMAGE_BYTES, rasterize } from './lib/image'
 
 const view = ref<'generate' | 'decode'>('generate')
 const content = ref('')
@@ -44,6 +44,13 @@ onMounted(() => {
     const canvas = await rasterize(svg, 512)
     if (await decodeCanvas(canvas) !== text) throw new Error('生成的二维码未通过识别校验')
     return { image: canvas.toDataURL('image/png'), mimeType: 'image/png', size: 512 }
+  })
+  window.utools?.registerTool?.('decode_qr_image', async ({ image, path }) => {
+    if ((image === undefined) === (path === undefined)) throw new Error('请提供图片 Data URL 或本机绝对路径，二选一')
+    const source = image === undefined ? window.funqr?.readImageFile(path as string) : image
+    if (typeof source !== 'string' || source.length > Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 100
+      || !/^data:image\/(png|jpeg|webp|gif|bmp);base64,[\da-z+/=]+$/i.test(source)) throw new Error('图片数据无效或超过 20 MB')
+    return { text: (await decodeImage(await (await fetch(source)).blob())).text }
   })
   media.addEventListener('change', syncTheme)
   window.addEventListener('paste', paste)
