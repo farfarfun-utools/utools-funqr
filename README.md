@@ -11,6 +11,10 @@
 
 项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `zqqonl7o`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
 
+## AI / MCP 工具
+
+`generate_qr_png` 将文本离线生成并反向校验为 512 px PNG，返回图片 Data URL；不会保存或上传原文。需 uTools 8 的工具能力，第三方 Agent 还需由用户开启 uTools MCP 服务。
+
 ## 能做什么
 
 - **文本 → 二维码**：输入文字、网址、中文或 Emoji，即时预览；保留原始空格与换行。

@@ -4,6 +4,8 @@ import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import Icon from './components/Icon.vue'
 import Generator from './components/Generator.vue'
 import Scanner from './components/Scanner.vue'
+import { PRESETS, makeQrSvg } from './lib/qr'
+import { decodeCanvas, rasterize } from './lib/image'
 
 const view = ref<'generate' | 'decode'>('generate')
 const content = ref('')
@@ -36,6 +38,13 @@ function notify(text: string) {
 function syncTheme() { systemDark.value = window.utools?.isDarkColors?.() ?? media.matches }
 onMounted(() => {
   alive = true
+  window.utools?.registerTool?.('generate_qr_png', async ({ text }) => {
+    if (typeof text !== 'string') throw new Error('请提供二维码文本')
+    const { svg } = makeQrSvg(text, { ...PRESETS[0], gradient: false, shape: 'square', logo: '' })
+    const canvas = await rasterize(svg, 512)
+    if (await decodeCanvas(canvas) !== text) throw new Error('生成的二维码未通过识别校验')
+    return { image: canvas.toDataURL('image/png'), mimeType: 'image/png', size: 512 }
+  })
   media.addEventListener('change', syncTheme)
   window.addEventListener('paste', paste)
   window.utools?.onPluginEnter(({ code, payload }) => {

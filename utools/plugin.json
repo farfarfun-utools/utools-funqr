@@ -12,5 +12,16 @@
     { "code": "decode", "explain": "从图片、剪贴板或截图中识别二维码内容", "cmds": ["识别二维码", "二维码识别", "扫码", "二维码转文本"] },
     { "code": "text-qr", "explain": "将选中的文本转成二维码", "cmds": [{ "type": "over", "label": "生成二维码", "minLength": 1, "maxLength": 1200 }] }
   ],
-  "platform": ["darwin", "win32", "linux"]
+  "platform": ["darwin", "win32", "linux"],
+  "tools": {
+    "generate_qr_png": {
+      "description": "离线把文本生成并反向识别校验为 512×512 PNG 二维码，返回图片 Data URL；不保存或上传内容。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": { "text": { "type": "string", "description": "要编码的原文，最多 1200 UTF-8 字节" } },
+        "required": ["text"]
+      }
+    }
+  }
 }
