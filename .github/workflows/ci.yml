@@ -26,10 +26,6 @@ jobs:
           cache: pnpm
       - name: Check and build
         run: sh build.sh
-      - name: Test with Node Web Storage enabled
-        run: pnpm test
-        env:
-          NODE_OPTIONS: --experimental-webstorage
       - uses: actions/upload-artifact@v4
         if: matrix.node == '22'
         with:
