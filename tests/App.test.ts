@@ -99,10 +99,10 @@ it('过期的异步生成结果不能覆盖最新输入', async () => {
 })
 it('保存取消不报成功，磁盘错误会反馈', async () => {
   await generate()
-  window.funqr = { saveFile: vi.fn(() => false) }
+  window.funqr = { saveFile: vi.fn(() => false), readImageFile: vi.fn() }
   await app.get('.export-actions button').trigger('click')
   expect(app.find('.toast').exists()).toBe(false)
-  window.funqr.saveFile = () => { throw new Error('磁盘空间不足') }
+  window.funqr!.saveFile = () => { throw new Error('磁盘空间不足') }
   await app.get('.export-actions button').trigger('click')
   expect(app.get('[role="alert"]').text()).toContain('磁盘空间不足')
 })
