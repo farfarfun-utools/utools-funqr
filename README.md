@@ -7,7 +7,7 @@
 
 ## UPXS 安装与发布
 
-从 [v1.0.3 Release](https://github.com/farfarfun-utools/utools-funqr/releases/tag/v1.0.3) 下载 `utools-funqr-1.0.3.upxs`，导入 uTools 使用。也可在成功的 CI 中下载 `utools-funqr-upxs` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
+从 [v1.0.4 Release](https://github.com/farfarfun-utools/utools-funqr/releases/tag/v1.0.4) 下载 `utools-funqr-1.0.4.upxs`，导入 uTools 使用。也可在成功的 CI 中下载 `utools-funqr-upxs` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
 
 项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `zqqonl7o`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
 
@@ -19,7 +19,7 @@
 
 - **文本 → 二维码**：输入文字、网址、中文或 Emoji，即时预览；保留原始空格与换行。
 - **二维码 → 文本**：选择图片、拖入图片、粘贴剪贴板图片，或使用 uTools 截图识别；可复制、保存 TXT，或继续生成新的二维码。
-- **二维码美化**：六套配色，方块 / 圆角 / 圆点，双色渐变、自定义前景与背景、中心 Logo。
+- **二维码美化**：八套配色，方块 / 圆角 / 圆点 / 胶囊 / 菱形码点，双色渐变、自定义前景与背景、中心 Logo 或短文字，以及底部说明文字。
 - **清晰导出**：512 / 1024 / 2048 px PNG、SVG 矢量图，以及一键复制图片；无水印。
 - **日夜皆宜**：暖白与紫藤色界面，支持浅色、深色、跟随系统，适配窄窗口。
 - **完全离线**：生成与识别都在本机完成，无账号、无上传、无远程字体，不保存内容历史，仅保存主题偏好。
@@ -31,6 +31,8 @@
 | 美化与 Logo | 识别与文本互转 |
 | --- | --- |
 | ![美化二维码](docs/screenshots/styled.png) | ![识别二维码](docs/screenshots/scan.png) |
+
+![中心文字与底部说明](docs/screenshots/caption.png)
 
 <details><summary>查看深色与窄屏界面</summary>
 
@@ -69,7 +71,7 @@ sh build.sh
 
 - 单次生成最多 **1200 UTF-8 字节**，汉字通常占 3 字节。内容越长码点越密，建议增大导出尺寸并使用方块样式。
 - 识别 PNG、JPEG、WebP、GIF、BMP；最大 **20 MB / 2400 万像素**，处理时最长边缩放至 2048 px。GIF 只处理静态首帧，每次返回一个二维码；复杂图片请先裁剪到二维码附近。
-- Logo 会遮挡部分信息。若当前样式无法通过识别校验，插件会提示调整；本机校验不等于所有扫码器都能识别，印刷前请用实际设备试扫。
+- Logo 和中心文字会遮挡部分信息。若当前样式无法通过识别校验，插件会提示调整；本机校验不等于所有扫码器都能识别，印刷前请用实际设备试扫。底部文字位于二维码静区之外，导出图片高度会相应增加。
 - 识别结果只作为文本展示，不自动打开链接或执行内容。内容会保留在当前会话中供互转，关闭插件进程后丢弃；下载、复制的内容由用户自行管理。
 - 当前处理文本二维码，不提供条形码、摄像头连续扫描、批量识别或内容历史。
 
@@ -83,7 +85,7 @@ pnpm screenshots  # 构建、真实浏览器扫码与导出检查、截图
 sh build.sh       # 安装锁定依赖、类型检查、测试、构建、插件文件检查
 ```
 
-截图需要 Chrome / Chromium，可通过 `CHROME_PATH` 指定。浏览器检查覆盖配色与码点组合、渐变 / Logo、中文 / Emoji / 空白 / 长文本、实际 PNG / SVG 导出、识别回填、无二维码提示、窗口适配和无外部请求。CI 同时运行 Node.js 22 / 24，并启用 Node Web Storage 重跑测试，避免浏览器存储被 Node 同名全局变量覆盖。
+截图需要 Chrome / Chromium，可通过 `CHROME_PATH` 指定。浏览器检查覆盖配色与码点组合、渐变 / Logo / 文字装饰、中文 / Emoji / 空白 / 长文本、实际 PNG / SVG 导出、识别回填、无二维码提示、窗口适配和无外部请求。CI 同时运行 Node.js 22 / 24，并启用 Node Web Storage 重跑测试，避免浏览器存储被 Node 同名全局变量覆盖。
 
 技术栈：Vue 3、TypeScript、Vite、qrcode、jsQR、Vitest。按 uTools Chromium 132 构建，原生截图、剪贴板和保存对话框仍需在实际 uTools 环境验收。
 

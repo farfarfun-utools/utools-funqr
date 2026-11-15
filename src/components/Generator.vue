@@ -6,8 +6,8 @@ import { decodeCanvas, imageCanvas, rasterize, saveBlob } from '../lib/image'
 
 const content = defineModel<string>({ required: true })
 const emit = defineEmits<{ notify: [text: string] }>()
-const style = reactive<QrStyle>({ ...PRESETS[1], gradient: false, shape: 'rounded', logo: '' })
-const shapes: { value: Shape; label: string }[] = [{ value: 'square', label: '方块' }, { value: 'rounded', label: '圆角' }, { value: 'dots', label: '圆点' }]
+const style = reactive<QrStyle>({ ...PRESETS[1], gradient: false, shape: 'rounded', logo: '', centerText: '', caption: '' })
+const shapes: { value: Shape; label: string }[] = [{ value: 'square', label: '方块' }, { value: 'rounded', label: '圆角' }, { value: 'dots', label: '圆点' }, { value: 'pill', label: '胶囊' }, { value: 'diamond', label: '菱形' }]
 const size = ref(1024)
 const png = ref('')
 const svg = ref('')
@@ -64,7 +64,7 @@ async function uploadLogo(event: Event) {
   actionError.value = ''
   try {
     const image = await imageCanvas(file, 256)
-    if (alive) style.logo = image.toDataURL('image/png')
+    if (alive) { style.logo = image.toDataURL('image/png'); style.centerText = '' }
   } catch (cause) { if (alive) actionError.value = cause instanceof Error ? cause.message : 'Logo 读取失败' }
   finally { if (alive) logoBusy.value = false }
 }
@@ -117,20 +117,21 @@ onUnmounted(() => { alive = false; clearTimeout(timer); controller?.abort() })
         <div class="control-row"><span class="control-label">自定义配色</span><div class="color-controls"><label><input v-model="style.foreground" type="color" aria-label="码点颜色" /><span>码点</span></label><label><input v-model="style.background" type="color" aria-label="背景颜色" /><span>背景</span></label><label class="gradient-toggle"><input v-model="style.gradient" type="checkbox" /><span>双色渐变</span></label><input v-if="style.gradient" v-model="style.accent" type="color" aria-label="渐变颜色" /></div></div>
         <div class="control-row"><span class="control-label">中心 Logo <small>可选</small></span><div class="logo-controls"><label class="logo-upload"><img v-if="style.logo" :src="style.logo" alt="已选 Logo" /><Icon v-else name="image" /><span>{{ logoBusy ? '读取中…' : style.logo ? '更换图片' : '添加图片' }}</span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" :disabled="logoBusy" aria-label="上传中心 Logo" @change="uploadLogo" /></label><button v-if="style.logo" class="icon-button" aria-label="移除 Logo" @click="style.logo = ''"><Icon name="close" /></button></div></div>
       </div>
+      <details class="extra-controls"><summary>添加文字</summary><div class="extra-fields"><label for="center-text">中心短文字 <small>最多 4 字，与 Logo 二选一</small></label><input id="center-text" :value="style.centerText" maxlength="4" placeholder="如：喜、店名" @input="style.centerText = ($event.target as HTMLInputElement).value; if (style.centerText) style.logo = ''" /><label for="caption-text">底部说明文字 <small>最多 24 字</small></label><input id="caption-text" v-model="style.caption" maxlength="24" placeholder="如：扫码查看详情" /></div></details>
       <p v-if="error || actionError" class="error-message" role="alert">{{ error || actionError }}</p>
     </section>
 
     <section class="preview-column" aria-label="二维码预览">
       <div class="preview-stage">
         <div class="preview-heading"><span>LIVE PREVIEW</span><span class="preview-badge">你的专属二维码</span></div>
-        <div class="qr-paper" :style="{ background: content ? style.background : undefined }">
+        <div class="qr-paper" :class="{ 'has-caption': !!style.caption?.trim() }" :style="{ background: content ? style.background : undefined }">
           <img v-if="ready" :src="png" alt="生成的二维码" class="qr-image" />
           <div v-else class="empty-qr"><Icon :name="busy ? 'sparkle' : 'qr'" /><strong>{{ busy ? '正在生成与检查…' : error ? '调整一下，再试试' : '让分享，有点不一样' }}</strong><span>{{ busy ? '美观，也要好扫描' : error ? '请查看左侧提示' : '输入内容，二维码即刻呈现' }}</span></div>
         </div>
         <div class="preview-state" :class="{ ready }" role="status"><Icon v-if="ready" name="check" /><span>{{ ready ? '已验证可识别' : busy ? '正在校验扫码结果' : '准备好，传递一点美好' }}</span></div>
         <div class="stage-decoration" aria-hidden="true"><Icon name="sparkle" /></div>
       </div>
-      <div class="export-settings"><label for="export-size">PNG 尺寸</label><select id="export-size" v-model.number="size"><option :value="512">512 × 512 px</option><option :value="1024">1024 × 1024 px</option><option :value="2048">2048 × 2048 px</option></select></div>
+      <div class="export-settings"><label for="export-size">PNG 宽度</label><select id="export-size" v-model.number="size"><option :value="512">512 px</option><option :value="1024">1024 px</option><option :value="2048">2048 px</option></select></div>
       <div class="export-actions"><button class="primary-button" :disabled="!ready" @click="exportImage('png')"><Icon name="download" />下载 PNG</button><button class="secondary-button" :disabled="!ready" @click="copyImage"><Icon name="copy" />复制图片</button></div>
       <button class="svg-export" :disabled="!ready" @click="exportImage('svg')">导出 SVG 矢量图 <Icon name="arrow" /></button>
       <p class="export-note">清晰，无水印。适合分享，也适合印刷。</p>

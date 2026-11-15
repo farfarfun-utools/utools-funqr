@@ -68,8 +68,8 @@ export async function rasterize(svg: string, size: number): Promise<HTMLCanvasEl
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
   try {
     const image = await loadImage(url)
-    const result = canvas(size, size)
-    result.context.drawImage(image, 0, 0, size, size)
+    const result = canvas(size, Math.round(size * image.naturalHeight / image.naturalWidth))
+    result.context.drawImage(image, 0, 0, result.element.width, result.element.height)
     return result.element
   } finally { URL.revokeObjectURL(url) }
 }

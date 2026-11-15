@@ -72,9 +72,9 @@ try {
   assert.ok(fs.readFileSync(svgFile, 'utf8').startsWith('<svg'))
 
   // 真浏览器校验每个预设和码点，不用测试替身代替扫码。
-  for (let preset = 1; preset <= 6; preset++) {
+  for (let preset = 1; preset <= 8; preset++) {
     await click(`.presets button:nth-child(${preset})`)
-    for (let shape = 1; shape <= 3; shape++) { await click(`.shape-options button:nth-child(${shape})`); await ready() }
+    for (let shape = 1; shape <= 5; shape++) { await click(`.shape-options button:nth-child(${shape})`); await ready() }
   }
   await click('.presets button:nth-child(2)')
   await click('.gradient-toggle input')
@@ -85,6 +85,17 @@ try {
   await ready()
   await session.waitForExpression('document.querySelector(".toast") === null')
   await screenshot('styled')
+  await click('[aria-label="移除 Logo"]')
+  await click('.extra-controls summary')
+  await setValue('#center-text', '喜')
+  await setValue('#caption-text', '扫码查看详情')
+  await ready()
+  assert.equal(await session.evaluate('document.querySelector(".qr-image").naturalHeight > document.querySelector(".qr-image").naturalWidth'), true)
+  await screenshot('caption', true)
+  await setValue('#center-text', '')
+  await setValue('#caption-text', '')
+  await ready()
+  await click('.extra-controls summary')
   await click('.theme-button'); await click('.theme-button')
   await screenshot('dark')
   await click('.theme-button')
@@ -100,7 +111,6 @@ try {
   await click('.result-actions button:last-child')
   assert.equal(await session.evaluate('document.querySelector("#qr-content").value'), demo)
 
-  await click('[aria-label="移除 Logo"]')
   await click('.gradient-toggle input')
   await click('.shape-options button:first-child')
   for (const text of ['hello', ' \n ', '<script>alert(1)</script> 😀', '码'.repeat(400)]) {
@@ -130,7 +140,7 @@ try {
   assert.equal(await session.evaluate('document.querySelector("#scan-output") === null'), true)
   assert.deepEqual(errors, [], '浏览器错误')
   assert.deepEqual(externalRequests, [], '不应请求外部资源')
-  console.log('浏览器检查通过：18 组配色/码点、渐变/Logo、UTF-8 上限、实际 PNG/SVG 导出、扫码回填、错误反馈与离线运行。')
+  console.log('浏览器检查通过：40 组配色/码点、渐变/Logo、文字装饰、UTF-8 上限、实际 PNG/SVG 导出、扫码回填、错误反馈与离线运行。')
 } finally {
   await browser?.close()
   await new Promise(resolve => server.httpServer.close(resolve))

@@ -8,8 +8,10 @@ export const PRESETS = [
   { name: '森林来信', foreground: '#305e4b', background: '#f4f8ef', accent: '#65702e' },
   { name: '落日珊瑚', foreground: '#914c3c', background: '#fff6ee', accent: '#9e465c' },
   { name: '咖啡时光', foreground: '#645040', background: '#faf5ed', accent: '#8c603b' },
+  { name: '莓果粉黛', foreground: '#863e61', background: '#fff5f8', accent: '#a33e52' },
+  { name: '青柠汽水', foreground: '#365c4e', background: '#f5fbf2', accent: '#6a662d' },
 ]
-export type Shape = 'square' | 'rounded' | 'dots'
+export type Shape = 'square' | 'rounded' | 'dots' | 'pill' | 'diamond'
 export interface QrStyle {
   foreground: string
   background: string
@@ -17,6 +19,8 @@ export interface QrStyle {
   gradient: boolean
   shape: Shape
   logo: string
+  centerText?: string
+  caption?: string
 }
 export function textBytes(text: string) { return new TextEncoder().encode(text).length }
 
@@ -37,8 +41,11 @@ export function makeQrSvg(text: string, style: QrStyle) {
   if (textBytes(text) > MAX_TEXT_BYTES) throw new Error(`内容过长，请控制在 ${MAX_TEXT_BYTES} 字节内（汉字通常占 3 字节）`)
   if (![style.foreground, style.background, style.accent].every(color => /^#[\da-f]{6}$/i.test(color))) throw new Error('请选择有效的颜色')
   if (contrast(style.foreground, style.background) < 4.5 || (style.gradient && contrast(style.accent, style.background) < 4.5)) throw new Error('颜色太接近了，请选择更深的码点或更浅的背景')
-  if (!['square', 'rounded', 'dots'].includes(style.shape)) throw new Error('不支持的码点样式')
+  if (!['square', 'rounded', 'dots', 'pill', 'diamond'].includes(style.shape)) throw new Error('不支持的码点样式')
   if (style.logo && !/^data:image\/png;base64,[\da-z+/=]+$/i.test(style.logo)) throw new Error('Logo 图片无效，请重新上传')
+  if (Array.from(style.centerText || '').length > 4) throw new Error('中心文字最多 4 个字')
+  if (Array.from(style.caption || '').length > 24) throw new Error('底部文字最多 24 个字')
+  if (style.centerText && style.logo) throw new Error('中心文字和 Logo 只能选择一个')
 
   const qr = QRCode.create(text, { errorCorrectionLevel: 'H' })
   const size = qr.modules.size
@@ -52,12 +59,20 @@ export function makeQrSvg(text: string, style: QrStyle) {
       const shape = qr.modules.isReserved(row, col) ? 'square' : style.shape
       cells.push(shape === 'dots'
         ? `<circle cx="${x + 0.5}" cy="${y + 0.5}" r="0.47"/>`
-        : `<rect x="${x}" y="${y}" width="1" height="1"${shape === 'rounded' ? ' rx="0.28"' : ' shape-rendering="crispEdges"'}/>`)
+        : shape === 'diamond'
+          ? `<path d="M${x + 0.5} ${y + 0.02}L${x + 0.98} ${y + 0.5} ${x + 0.5} ${y + 0.98} ${x + 0.02} ${y + 0.5}Z"/>`
+          : `<rect x="${x}" y="${y}" width="1" height="1"${shape === 'rounded' ? ' rx="0.28"' : shape === 'pill' ? ' rx="0.48"' : ' shape-rendering="crispEdges"'}/>`)
     }
   }
-  const logoEdge = Math.max(3, Math.floor(size * 0.15))
+  const center = style.centerText?.trim()
+  const caption = style.caption?.trim()
+  const logoEdge = center ? Math.max(4, Math.floor(size * 0.21)) : Math.max(3, Math.floor(size * 0.15))
   const logoX = (edge - logoEdge) / 2
-  const logo = style.logo ? `<rect x="${logoX - 0.65}" y="${logoX - 0.65}" width="${logoEdge + 1.3}" height="${logoEdge + 1.3}" rx="0.8" fill="${style.background}"/><image href="${style.logo}" x="${logoX}" y="${logoX}" width="${logoEdge}" height="${logoEdge}"/>` : ''
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${edge * 16}" height="${edge * 16}" viewBox="0 0 ${edge} ${edge}"><defs><linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${style.foreground}"/><stop offset="1" stop-color="${style.accent}"/></linearGradient></defs><rect width="${edge}" height="${edge}" fill="${style.background}"/><g fill="${style.gradient ? 'url(#ink)' : style.foreground}">${cells.join('')}</g>${logo}</svg>`
+  const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!)
+  const centerContent = center ? `<text x="${edge / 2}" y="${edge / 2}" fill="${style.foreground}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="${Math.min(logoEdge * 0.55, logoEdge * 1.3 / Array.from(center).length)}" font-weight="700">${escape(center)}</text>` : ''
+  const logo = style.logo || center ? `<rect x="${logoX - 0.65}" y="${logoX - 0.65}" width="${logoEdge + 1.3}" height="${logoEdge + 1.3}" rx="0.8" fill="${style.background}"/>${style.logo ? `<image href="${style.logo}" x="${logoX}" y="${logoX}" width="${logoEdge}" height="${logoEdge}"/>` : centerContent}` : ''
+  const height = edge + (caption ? 7 : 0)
+  const footer = caption ? `<text x="${edge / 2}" y="${edge + 3.2}" fill="${style.foreground}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="${Math.min(2.5, (edge - 8) / Array.from(caption).length)}" font-weight="600">${escape(caption)}</text>` : ''
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${edge * 16}" height="${height * 16}" viewBox="0 0 ${edge} ${height}"><defs><linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${style.foreground}"/><stop offset="1" stop-color="${style.accent}"/></linearGradient></defs><rect width="${edge}" height="${height}" fill="${style.background}"/><g fill="${style.gradient ? 'url(#ink)' : style.foreground}">${cells.join('')}</g>${logo}${footer}</svg>`
   return { svg, modules: size }
 }
