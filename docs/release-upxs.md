@@ -1,9 +1,5 @@
-v1.0.4：修正预览中的二维码倾斜，新增两套配色、胶囊与菱形码点样式；可在二维码中心放短文字，或在底部添加说明文字。PNG、SVG 和复制图片均包含文字装饰，生成结果仍须通过反向识别校验。
+## 码上生花 v1.0.5
 
-码上生花 UPXS 正式版，官方插件项目 ID：`zqqonl7o`。
+通过 AI/MCP 调用 decode_qr_image 时，识别到的二维码文本直接返回，省去预览 PNG 编码。插件内扫码仍可预览图片。
 
-保留 `generate_qr_png` 和 `decode_qr_image` AI/MCP 工具，可离线生成二维码 PNG，或从图片 Data URL、本机文件识别二维码原文。
-
-下载 `utools-funqr-1.0.4.upxs` 后导入 uTools。此包通过 GitHub Actions 构建，使用统一的 `utools-devtools` 生成，并完成认证解密、清单资源、插件 ID 和 ASAR 完整性校验；提供 `SHA256SUMS` 核对下载文件。
-
-三个敏感字段由组织 Secrets 注入，仓库只保存公开的项目配置。相同打包链路已由用户在 FunCalc 上实机安装验证；本插件自身的安装和功能仍待实机确认。
+下载 `utools-funqr-1.0.5.upxs` 并导入 uTools 安装。附件 `SHA256SUMS` 可用于校验下载文件。
