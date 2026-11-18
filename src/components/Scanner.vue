@@ -20,7 +20,7 @@ async function scan(blob: Blob) {
   busy.value = true; result.value = null; preview.value = ''; error.value = ''
   try {
     const decoded = await decodeImage(blob, request.signal)
-    if (!request.signal.aborted && alive) { result.value = decoded.text; preview.value = decoded.preview }
+    if (!request.signal.aborted && alive) { result.value = decoded.text; preview.value = decoded.image.toDataURL('image/png') }
   } catch (cause) {
     if (!request.signal.aborted && alive) error.value = cause instanceof Error ? cause.message : '识别失败，请重试'
   } finally { if (!request.signal.aborted && alive) busy.value = false }

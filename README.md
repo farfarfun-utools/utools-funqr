@@ -7,11 +7,13 @@
 
 ## UPXS 安装与发布
 
-从 [v1.0.4 Release](https://github.com/farfarfun-utools/utools-funqr/releases/tag/v1.0.4) 下载 `utools-funqr-1.0.4.upxs`，导入 uTools 使用。也可在成功的 CI 中下载 `utools-funqr-upxs` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
+从 [v1.0.5 Release](https://github.com/farfarfun-utools/utools-funqr/releases/tag/v1.0.5) 下载 `utools-funqr-1.0.5.upxs`，导入 uTools 使用。也可在成功的 CI 中下载 `utools-funqr-upxs` 附件。打包链路已由用户在 FunCalc 上验证；本插件的实机安装与功能仍需分别确认。
 
 项目根目录 [`identity.json`](identity.json) 明文维护官方项目 ID `zqqonl7o`。`mid`、`uid`、`cellphone` 由 `farfarfun-utools` 组织的 `UTOOLS_MID`、`UTOOLS_UID`、`UTOOLS_CELLPHONE` Secrets 注入，不写入公开配置。CI 和 Release 统一调用固定版本的 [utools-devtools](https://github.com/farfarfun-action/utools-devtools)，生成 `.upxs` 与 `SHA256SUMS`，PR 不执行身份打包。
 
 ## AI / MCP 工具
+
+v1.0.5 的识别工具直接返回文本，省去预览图编码。
 
 `generate_qr_png` 将文本离线生成并反向校验为 512 px PNG，返回图片 Data URL。`decode_qr_image` 接受图片 Data URL 或本机绝对路径，离线返回二维码原文；不会自动打开识别出的链接，也不会保存或上传图片。需 uTools 8 的工具能力，第三方 Agent 还需由用户开启 uTools MCP 服务。
 
@@ -44,8 +46,6 @@
 截图来自实际构建后的界面。GitHub Actions 会运行浏览器检查、重新截图，并在图片有变化时自动提交。
 
 ## 安装与使用
-
-当前提供源码构建和 CI 构建产物，尚未发布正式 UPX 安装包或上架插件市场。
 
 需要 **Node.js ≥ 22.22.2**，pnpm 版本见 `package.json#packageManager`。
 

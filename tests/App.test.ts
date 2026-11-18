@@ -15,6 +15,7 @@ let app: VueWrapper
 let enter: (action: { code: string; payload?: unknown }) => void
 let tools: Map<string, (params: Record<string, unknown>) => unknown | Promise<unknown>>
 const generated = 'data:image/png;base64,dGVzdA=='
+const toPreview = vi.fn(() => generated)
 enableAutoUnmount(afterEach)
 beforeEach(() => {
   tools = new Map()
@@ -24,7 +25,7 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
   vi.mocked(rasterize).mockResolvedValue({ toDataURL: () => generated } as unknown as HTMLCanvasElement)
   vi.mocked(decodeCanvas).mockResolvedValue('hello')
-  vi.mocked(decodeImage).mockResolvedValue({ text: 'hello', preview: generated })
+  vi.mocked(decodeImage).mockResolvedValue({ text: 'hello', image: { toDataURL: toPreview } as unknown as HTMLCanvasElement })
   window.utools = { onPluginEnter: callback => { enter = callback }, registerTool: (name, handler) => { tools.set(name, handler) }, copyImage: vi.fn(() => true), copyText: vi.fn(() => true) }
   app = mount(App, { attachTo: document.body })
 })
@@ -53,6 +54,7 @@ it('AI 工具识别图片并只返回原文', async () => {
   window.funqr = { saveFile: vi.fn(), readImageFile: vi.fn(() => generated) }
   expect(await tool({ path: '/tmp/code.png' })).toEqual({ text: 'hello' })
   expect(window.funqr.readImageFile).toHaveBeenCalledWith('/tmp/code.png')
+  expect(toPreview).not.toHaveBeenCalled()
   await expect(tool({ image: 'https://example.com/code.png' })).rejects.toThrow('图片数据无效')
   await expect(tool({ image: generated, path: '/tmp/code.png' })).rejects.toThrow('二选一')
   expect(localStorage.length).toBe(0)
@@ -109,12 +111,13 @@ it('保存取消不报成功，磁盘错误会反馈', async () => {
 it('识别结果可复制并转回生成页，原始文本不作为 HTML 执行', async () => {
   enter({ code: 'decode' })
   const source = '<img src=x onerror=alert(1)>'
-  vi.mocked(decodeImage).mockResolvedValueOnce({ text: source, preview: generated })
+  vi.mocked(decodeImage).mockResolvedValueOnce({ text: source, image: { toDataURL: toPreview } as unknown as HTMLCanvasElement })
   const input = app.get('input[aria-label="选择二维码图片"]')
   Object.defineProperty(input.element, 'files', { value: [new File(['png'], 'test.png', { type: 'image/png' })] })
   await input.trigger('change')
   await vi.advanceTimersByTimeAsync(0)
   expect(app.get('#scan-output').element).toHaveProperty('value', source)
+  expect(app.get('.drop-zone img').attributes('src')).toBe(generated)
   expect(app.find('img[onerror]').exists()).toBe(false)
   await app.get('.result-actions button:first-child').trigger('click')
   expect(window.utools?.copyText).toHaveBeenCalledWith(source)

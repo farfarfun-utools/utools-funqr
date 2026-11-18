@@ -61,7 +61,7 @@ export async function decodeImage(blob: Blob, signal?: AbortSignal) {
   const image = await imageCanvas(blob)
   const text = await decodeCanvas(image, signal)
   if (text === null) throw new Error('没有发现二维码，请换一张清晰图片，或裁剪至二维码附近')
-  return { text, preview: image.toDataURL('image/png') }
+  return { text, image }
 }
 
 export async function rasterize(svg: string, size: number): Promise<HTMLCanvasElement> {
