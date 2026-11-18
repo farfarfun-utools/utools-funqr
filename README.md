@@ -45,8 +45,6 @@
 
 ## 安装与使用
 
-当前提供源码构建和 CI 构建产物，尚未发布正式 UPX 安装包或上架插件市场。
-
 需要 **Node.js ≥ 22.22.2**，pnpm 版本见 `package.json#packageManager`。
 
 ```bash
