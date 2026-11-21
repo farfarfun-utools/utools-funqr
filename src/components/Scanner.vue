@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import Icon from './Icon.vue'
-import { clipboardImage, decodeImage, IMAGE_TYPES, saveBlob } from '../lib/image'
+import { clipboardImage, dataUrlToBlob, decodeImage, IMAGE_TYPES, saveBlob } from '../lib/image'
+
+defineOptions({ name: 'QrScanner' })
 
 const emit = defineEmits<{ generate: [text: string]; notify: [text: string] }>()
 const result = ref<string | null>(null)
@@ -37,7 +39,12 @@ function drop(event: DragEvent) {
   else error.value = '请拖入本地图片文件'
 }
 function paste(event: ClipboardEvent) {
-  const file = Array.from(event.clipboardData?.files ?? []).find(file => IMAGE_TYPES.includes(file.type))
+  const data = event.clipboardData
+  const fromFiles = Array.from(data?.files ?? []).find(file => IMAGE_TYPES.includes(file.type))
+  const fromItems = fromFiles ? undefined : Array.from(data?.items ?? [])
+    .find(item => item.kind === 'file' && IMAGE_TYPES.includes(item.type))
+    ?.getAsFile() ?? undefined
+  const file = fromFiles ?? fromItems
   if (file) { event.preventDefault(); void scan(file) }
 }
 async function pasteImage() {
@@ -46,12 +53,13 @@ async function pasteImage() {
   catch (cause) { if (alive) error.value = cause instanceof Error ? cause.message : '无法读取剪贴板，请直接粘贴图片' }
 }
 function capture() {
+  error.value = ''
   if (!window.utools?.screenCapture) { error.value = '截图识别需在 uTools 中使用，也可以粘贴截图或选择图片'; return }
   window.utools.screenCapture(async data => {
     if (!data || !alive) return
     try {
       if (!/^data:image\/(png|jpeg);base64,/.test(data)) throw new Error('截图格式不支持')
-      await scan(await (await fetch(data)).blob())
+      await scan(dataUrlToBlob(data))
     } catch (cause) { if (alive) error.value = cause instanceof Error ? cause.message : '截图读取失败' }
   })
 }

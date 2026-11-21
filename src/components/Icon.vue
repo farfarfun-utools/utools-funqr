@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: 'QrIcon' })
 defineProps<{ name: keyof typeof paths }>()
 const paths = {
   qr: 'M3 3h6v6H3V3Zm12 0h6v6h-6V3ZM3 15h6v6H3v-6Zm12 0h2v2h-2v-2Zm6-2v4m-8 4h4v-2m4 2h-2M3 12h3m6-9v3m0 3v3h4m5 0h-3m-6 3v2',

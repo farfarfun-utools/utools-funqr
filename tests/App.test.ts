@@ -3,17 +3,21 @@
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from '../src/App.vue'
-import { decodeCanvas, decodeImage, rasterize } from '../src/lib/image'
+import { decodeCanvas, decodeImage, imageCanvas, rasterize } from '../src/lib/image'
 
-vi.mock('../src/lib/image', () => ({
-  MAX_IMAGE_BYTES: 20 * 1024 * 1024,
-  IMAGE_TYPES: ['image/png'],
-  rasterize: vi.fn(), decodeCanvas: vi.fn(), decodeImage: vi.fn(),
-  clipboardImage: vi.fn(), imageCanvas: vi.fn(), saveBlob: vi.fn(),
-}))
+vi.mock('../src/lib/image', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/lib/image')>()
+  return {
+    ...actual,
+    MAX_IMAGE_BYTES: 20 * 1024 * 1024,
+    IMAGE_TYPES: ['image/png'],
+    rasterize: vi.fn(), decodeCanvas: vi.fn(), decodeImage: vi.fn(),
+    clipboardImage: vi.fn(), imageCanvas: vi.fn(), saveBlob: vi.fn(),
+  }
+})
 let app: VueWrapper
 let enter: (action: { code: string; payload?: unknown }) => void
-let tools: Map<string, (params: Record<string, unknown>) => unknown | Promise<unknown>>
+let tools: Map<string, (params?: Record<string, unknown> | null) => unknown | Promise<unknown>>
 const generated = 'data:image/png;base64,dGVzdA=='
 const toPreview = vi.fn(() => generated)
 enableAutoUnmount(afterEach)
@@ -35,22 +39,25 @@ async function generate(text = 'hello') {
   await vi.advanceTimersByTimeAsync(250)
 }
 
-it('AI 工具返回校验过的 PNG，不保存内容', async () => {
+it('AI 工具返回校验过的 PNG，不保存内容，并容错空参数', async () => {
   const tool = tools.get('generate_qr_png')!
   expect(await tool({ text: 'hello' })).toEqual({ image: generated, mimeType: 'image/png', size: 512 })
   expect(rasterize).toHaveBeenCalledWith(expect.stringContaining('<svg'), 512)
   await expect(tool({ text: '' })).rejects.toThrow('先写点内容')
+  await expect(tool(null)).rejects.toThrow('请提供二维码文本')
+  await expect(tool(undefined)).rejects.toThrow('请提供二维码文本')
   vi.mocked(decodeCanvas).mockResolvedValueOnce('different')
   await expect(tool({ text: 'hello' })).rejects.toThrow('识别校验')
   expect(localStorage.length).toBe(0)
 })
 
-it('AI 工具识别图片并只返回原文', async () => {
+it('AI 工具识别图片并只返回原文，容错空参数与缺失本机能力', async () => {
   const tool = tools.get('decode_qr_image')!
-  const fetchImage = vi.fn(async () => ({ blob: async () => new Blob(['image'], { type: 'image/png' }) }))
-  vi.stubGlobal('fetch', fetchImage)
   expect(await tool({ image: generated })).toEqual({ text: 'hello' })
-  expect(fetchImage).toHaveBeenCalledWith(generated)
+  expect(decodeImage).toHaveBeenCalledWith(expect.any(Blob))
+  await expect(tool({ path: '/tmp/code.png' })).rejects.toThrow('当前环境不支持读取本机文件路径')
+  await expect(tool(null)).rejects.toThrow('二选一')
+  await expect(tool(undefined)).rejects.toThrow('二选一')
   window.funqr = { saveFile: vi.fn(), readImageFile: vi.fn(() => generated) }
   expect(await tool({ path: '/tmp/code.png' })).toEqual({ text: 'hello' })
   expect(window.funqr.readImageFile).toHaveBeenCalledWith('/tmp/code.png')
@@ -132,4 +139,51 @@ it('宿主选中文本进入后可生成，主题偏好保存但内容不保存'
   await app.get('.theme-button').trigger('click')
   expect(document.documentElement.dataset.theme).toBe('dark')
   expect(Object.keys(localStorage)).toEqual(['funqr-theme'])
+})
+
+it('上传透明 Logo 时不填充白底，样式调整保留旧预览，且上传错误不被校验错误遮蔽', async () => {
+  await generate()
+  await app.get('#caption-text').setValue('扫码查看')
+  expect(app.find('.qr-image').exists()).toBe(true)
+  await vi.advanceTimersByTimeAsync(250)
+  expect(app.find('.qr-image').exists()).toBe(true)
+
+  const logoInput = app.get('input[aria-label="上传中心 Logo"]')
+  const file = new File(['png'], 'logo.png', { type: 'image/png' })
+  vi.mocked(imageCanvas).mockResolvedValueOnce({ toDataURL: () => generated } as unknown as HTMLCanvasElement)
+  Object.defineProperty(logoInput.element, 'files', { value: [file], configurable: true })
+  await logoInput.trigger('change')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(imageCanvas).toHaveBeenCalledWith(file, 256, { fillBackground: false })
+
+  await app.get('[aria-label="码点颜色"]').setValue('#ffffff')
+  await vi.advanceTimersByTimeAsync(250)
+  vi.mocked(imageCanvas).mockRejectedValueOnce(new Error('Logo 文件过大'))
+  Object.defineProperty(logoInput.element, 'files', { value: [file], configurable: true })
+  await logoInput.trigger('change')
+  await vi.advanceTimersByTimeAsync(0)
+  const alerts = app.findAll('[role="alert"]').map(node => node.text())
+  expect(alerts).toEqual(expect.arrayContaining([expect.stringContaining('颜色太接近'), expect.stringContaining('Logo 文件过大')]))
+})
+
+it('识别页支持通过 clipboardData.items 粘贴图片，且截图前清除旧错误', async () => {
+  enter({ code: 'decode' })
+  await app.get('.scan-actions button:last-child').trigger('click')
+  expect(app.get('.scanner [role="alert"]').text()).toContain('截图识别需在 uTools 中使用')
+  window.utools!.screenCapture = vi.fn()
+  await app.get('.scan-actions button:last-child').trigger('click')
+  expect(app.find('.scanner [role="alert"]').exists()).toBe(false)
+
+  const file = new File(['png'], 'paste.png', { type: 'image/png' })
+  const pasteEvent = new Event('paste', { cancelable: true }) as ClipboardEvent
+  Object.defineProperty(pasteEvent, 'clipboardData', {
+    value: {
+      files: [],
+      items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }],
+    },
+  })
+  window.dispatchEvent(pasteEvent)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(decodeImage).toHaveBeenCalledWith(file, expect.any(AbortSignal))
+  expect(app.get('#scan-output').element).toHaveProperty('value', 'hello')
 })

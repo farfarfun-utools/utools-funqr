@@ -1,8 +1,21 @@
 import jsQR from 'jsqr'
 
+interface DecodeRequest {
+  id: number
+  pixels: Uint8ClampedArray
+  width: number
+  height: number
+}
+
+interface DecodeResponse {
+  id: number
+  text: string | null
+  error?: string
+}
+
 const scope = self as unknown as {
-  onmessage: (event: MessageEvent<{ pixels: Uint8ClampedArray; width: number; height: number }>) => void
-  postMessage: (data: { text: string | null; error?: string }) => void
+  onmessage: (event: MessageEvent<DecodeRequest>) => void
+  postMessage: (data: DecodeResponse) => void
 }
 scope.onmessage = ({ data }) => {
   try {
@@ -11,7 +24,7 @@ scope.onmessage = ({ data }) => {
     const edge = Math.max(data.width, data.height)
     if (edge > 512) {
       const source = new OffscreenCanvas(data.width, data.height)
-      source.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(data.pixels), data.width, data.height), 0, 0)
+      source.getContext('2d')!.putImageData(new ImageData(data.pixels as Uint8ClampedArray<ArrayBuffer>, data.width, data.height), 0, 0)
       for (const size of [512, 768]) {
         if (size >= edge) continue
         const target = new OffscreenCanvas(Math.max(1, Math.round(data.width * size / edge)), Math.max(1, Math.round(data.height * size / edge)))
@@ -23,8 +36,8 @@ scope.onmessage = ({ data }) => {
       }
     }
     result ??= jsQR(data.pixels, data.width, data.height, { inversionAttempts: 'attemptBoth' })
-    scope.postMessage({ text: result?.data ?? null })
+    scope.postMessage({ id: data.id, text: result?.data ?? null })
   } catch {
-    scope.postMessage({ text: null, error: '图片无法识别，请换一张清晰的图片' })
+    scope.postMessage({ id: data.id, text: null, error: '图片无法识别，请换一张清晰的图片' })
   }
 }

@@ -5,7 +5,7 @@ import Icon from './components/Icon.vue'
 import Generator from './components/Generator.vue'
 import Scanner from './components/Scanner.vue'
 import { PRESETS, makeQrSvg } from './lib/qr'
-import { decodeCanvas, decodeImage, MAX_IMAGE_BYTES, rasterize } from './lib/image'
+import { dataUrlToBlob, decodeCanvas, decodeImage, MAX_IMAGE_BYTES, rasterize } from './lib/image'
 
 const view = ref<'generate' | 'decode'>('generate')
 const content = ref('')
@@ -29,6 +29,7 @@ function toggleTheme() {
 function generate(text: string) { content.value = text; view.value = 'generate' }
 function paste(event: ClipboardEvent) { if (view.value === 'decode') scanner.value?.paste(event) }
 let toastTimer: ReturnType<typeof setTimeout>
+let unbindEnter: (() => void) | undefined
 let alive = false
 function notify(text: string) {
   clearTimeout(toastTimer)
@@ -38,30 +39,41 @@ function notify(text: string) {
 function syncTheme() { systemDark.value = window.utools?.isDarkColors?.() ?? media.matches }
 onMounted(() => {
   alive = true
-  window.utools?.registerTool?.('generate_qr_png', async ({ text }) => {
+  window.utools?.registerTool?.('generate_qr_png', async params => {
+    const text = params?.text
     if (typeof text !== 'string') throw new Error('请提供二维码文本')
     const { svg } = makeQrSvg(text, { ...PRESETS[0], gradient: false, shape: 'square', logo: '' })
     const canvas = await rasterize(svg, 512)
     if (await decodeCanvas(canvas) !== text) throw new Error('生成的二维码未通过识别校验')
     return { image: canvas.toDataURL('image/png'), mimeType: 'image/png', size: 512 }
   })
-  window.utools?.registerTool?.('decode_qr_image', async ({ image, path }) => {
+  window.utools?.registerTool?.('decode_qr_image', async params => {
+    const image = params?.image
+    const path = params?.path
     if ((image === undefined) === (path === undefined)) throw new Error('请提供图片 Data URL 或本机绝对路径，二选一')
-    const source = image === undefined ? window.funqr?.readImageFile(path as string) : image
+    let source: unknown
+    if (image === undefined) {
+      if (!window.funqr?.readImageFile) throw new Error('当前环境不支持读取本机文件路径，请提供图片 Data URL')
+      source = window.funqr.readImageFile(path as string)
+    } else {
+      source = image
+    }
     if (typeof source !== 'string' || source.length > Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 100
       || !/^data:image\/(png|jpeg|webp|gif|bmp);base64,[\da-z+/=]+$/i.test(source)) throw new Error('图片数据无效或超过 20 MB')
-    return { text: (await decodeImage(await (await fetch(source)).blob())).text }
+    return { text: (await decodeImage(dataUrlToBlob(source))).text }
   })
   media.addEventListener('change', syncTheme)
   window.addEventListener('paste', paste)
-  window.utools?.onPluginEnter(({ code, payload }) => {
+  const handleEnter = ({ code, payload }: { code: string; payload?: unknown }) => {
     if (!alive) return
     syncTheme()
     view.value = code === 'decode' ? 'decode' : 'generate'
     if (code === 'text-qr' && typeof payload === 'string') content.value = payload
-  })
+  }
+  if (window.funqr?.onEnter) unbindEnter = window.funqr.onEnter(handleEnter)
+  else window.utools?.onPluginEnter(handleEnter)
 })
-onUnmounted(() => { alive = false; clearTimeout(toastTimer); media.removeEventListener('change', syncTheme); window.removeEventListener('paste', paste) })
+onUnmounted(() => { alive = false; clearTimeout(toastTimer); unbindEnter?.(); media.removeEventListener('change', syncTheme); window.removeEventListener('paste', paste) })
 </script>
 
 <template>

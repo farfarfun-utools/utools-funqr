@@ -2,7 +2,9 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import Icon from './Icon.vue'
 import { MAX_TEXT_BYTES, PRESETS, makeQrSvg, textBytes, type QrStyle, type Shape } from '../lib/qr'
-import { decodeCanvas, imageCanvas, rasterize, saveBlob } from '../lib/image'
+import { dataUrlToBlob, decodeCanvas, imageCanvas, rasterize, saveBlob } from '../lib/image'
+
+defineOptions({ name: 'QrGenerator' })
 
 const content = defineModel<string>({ required: true })
 const emit = defineEmits<{ notify: [text: string] }>()
@@ -21,11 +23,19 @@ const activePreset = computed(() => PRESETS.findIndex(preset => preset.foregroun
 let controller: AbortController | undefined
 let timer: ReturnType<typeof setTimeout> | undefined
 let alive = true
+let lastContent = content.value
 
 watch([content, style, size], () => {
   clearTimeout(timer)
   controller?.abort()
-  png.value = ''; svg.value = ''; error.value = ''; actionError.value = ''
+  const contentChanged = content.value !== lastContent
+  lastContent = content.value
+  if (contentChanged || !content.value.length) {
+    png.value = ''
+    svg.value = ''
+  }
+  error.value = ''
+  actionError.value = ''
   busy.value = !!content.value.length
   if (!content.value.length) return
   const request = new AbortController()
@@ -34,14 +44,18 @@ watch([content, style, size], () => {
     try {
       const result = makeQrSvg(content.value, style)
       const original = content.value
-      const canvas = await rasterize(result.svg, size.value)
+      const canvas = await rasterize(result.svg, size.value, request.signal)
       const decoded = await decodeCanvas(canvas, request.signal)
       if (request.signal.aborted || !alive) return
       if (decoded !== original) throw new Error('当前样式不易识别，请增大尺寸、移除 Logo 或改用方块码点')
       svg.value = result.svg
       png.value = canvas.toDataURL('image/png')
     } catch (cause) {
-      if (!request.signal.aborted && alive) error.value = cause instanceof Error ? cause.message : '生成失败，请重新输入'
+      if (!request.signal.aborted && alive) {
+        png.value = ''
+        svg.value = ''
+        error.value = cause instanceof Error ? cause.message : '生成失败，请重新输入'
+      }
     } finally {
       if (!request.signal.aborted && alive) busy.value = false
     }
@@ -63,7 +77,7 @@ async function uploadLogo(event: Event) {
   logoBusy.value = true
   actionError.value = ''
   try {
-    const image = await imageCanvas(file, 256)
+    const image = await imageCanvas(file, 256, { fillBackground: false })
     if (alive) { style.logo = image.toDataURL('image/png'); style.centerText = '' }
   } catch (cause) { if (alive) actionError.value = cause instanceof Error ? cause.message : 'Logo 读取失败' }
   finally { if (alive) logoBusy.value = false }
@@ -76,7 +90,7 @@ async function exportImage(format: 'png' | 'svg') {
       if (window.funqr.saveFile(format === 'png' ? png.value : svg.value, format)) emit('notify', '已保存二维码')
       return
     }
-    const blob = format === 'svg' ? new Blob([svg.value], { type: 'image/svg+xml' }) : await (await fetch(png.value)).blob()
+    const blob = format === 'svg' ? new Blob([svg.value], { type: 'image/svg+xml' }) : dataUrlToBlob(png.value)
     saveBlob(blob, `FunQR-${size.value}.${format}`)
     emit('notify', '已开始下载二维码')
   } catch (cause) { actionError.value = cause instanceof Error ? cause.message : '保存失败，请重试' }
@@ -89,7 +103,7 @@ async function copyImage() {
       if (!window.utools.copyImage(png.value)) throw new Error('复制失败')
     } else {
       if (!navigator.clipboard?.write || !window.ClipboardItem) throw new Error('当前环境不支持复制图片，请下载 PNG')
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': await (await fetch(png.value)).blob() })])
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(png.value) })])
     }
     emit('notify', '二维码图片已复制')
   } catch (cause) { actionError.value = cause instanceof Error ? cause.message : '复制失败，请下载 PNG' }
@@ -118,14 +132,15 @@ onUnmounted(() => { alive = false; clearTimeout(timer); controller?.abort() })
         <div class="control-row"><span class="control-label">中心 Logo <small>可选</small></span><div class="logo-controls"><label class="logo-upload"><img v-if="style.logo" :src="style.logo" alt="已选 Logo" /><Icon v-else name="image" /><span>{{ logoBusy ? '读取中…' : style.logo ? '更换图片' : '添加图片' }}</span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" :disabled="logoBusy" aria-label="上传中心 Logo" @change="uploadLogo" /></label><button v-if="style.logo" class="icon-button" aria-label="移除 Logo" @click="style.logo = ''"><Icon name="close" /></button></div></div>
       </div>
       <details class="extra-controls"><summary>添加文字</summary><div class="extra-fields"><label for="center-text">中心短文字 <small>最多 4 字，与 Logo 二选一</small></label><input id="center-text" :value="style.centerText" maxlength="4" placeholder="如：喜、店名" @input="style.centerText = ($event.target as HTMLInputElement).value; if (style.centerText) style.logo = ''" /><label for="caption-text">底部说明文字 <small>最多 24 字</small></label><input id="caption-text" v-model="style.caption" maxlength="24" placeholder="如：扫码查看详情" /></div></details>
-      <p v-if="error || actionError" class="error-message" role="alert">{{ error || actionError }}</p>
+      <p v-if="error" class="error-message" role="alert">{{ error }}</p>
+      <p v-if="actionError" class="error-message" role="alert">{{ actionError }}</p>
     </section>
 
     <section class="preview-column" aria-label="二维码预览">
       <div class="preview-stage">
         <div class="preview-heading"><span>LIVE PREVIEW</span><span class="preview-badge">你的专属二维码</span></div>
         <div class="qr-paper" :class="{ 'has-caption': !!style.caption?.trim() }" :style="{ background: content ? style.background : undefined }">
-          <img v-if="ready" :src="png" alt="生成的二维码" class="qr-image" />
+          <img v-if="png && !error" :src="png" alt="生成的二维码" class="qr-image" />
           <div v-else class="empty-qr"><Icon :name="busy ? 'sparkle' : 'qr'" /><strong>{{ busy ? '正在生成与检查…' : error ? '调整一下，再试试' : '让分享，有点不一样' }}</strong><span>{{ busy ? '美观，也要好扫描' : error ? '请查看左侧提示' : '输入内容，二维码即刻呈现' }}</span></div>
         </div>
         <div class="preview-state" :class="{ ready }" role="status"><Icon v-if="ready" name="check" /><span>{{ ready ? '已验证可识别' : busy ? '正在校验扫码结果' : '准备好，传递一点美好' }}</span></div>

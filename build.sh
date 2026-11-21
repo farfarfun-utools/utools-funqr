@@ -23,8 +23,9 @@ if (diff < 0) {
 
 pnpm install --frozen-lockfile
 if [ "${SKIP_CHECKS:-0}" = "1" ]; then
-  echo "SKIP_CHECKS=1: skipping typecheck / test"
+  echo "SKIP_CHECKS=1: skipping lint / typecheck / test"
 else
+  pnpm lint
   pnpm typecheck
   pnpm test
   NODE_OPTIONS=--experimental-webstorage pnpm test
