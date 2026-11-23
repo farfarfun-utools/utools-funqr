@@ -45,5 +45,15 @@ describe('二维码内容与安全配色', () => {
     expect(() => makeQrSvg('hello', { ...style, centerText: '一二三四五' })).toThrow('中心文字')
     expect(() => makeQrSvg('hello', { ...style, caption: '字'.repeat(25) })).toThrow('底部文字')
     expect(() => makeQrSvg('hello', { ...style, centerText: '字', logo: 'data:image/png;base64,dGVzdA==' })).toThrow('只能选择一个')
+    expect(() => makeQrSvg('hello', { ...style, centerText: '   ', logo: 'data:image/png;base64,dGVzdA==' })).not.toThrow()
+  })
+  it('支持自定义容错等级，含 Logo 或中心文字时自动锁定高容错 H', () => {
+    const sample = 'https://farfarfun.github.io/packages/utools-funqr/?demo=long-url-for-density-test'
+    const low = makeQrSvg(sample, { ...style, level: 'L' })
+    const high = makeQrSvg(sample, { ...style, level: 'H' })
+    expect(low.modules).toBeLessThan(high.modules)
+    const withCenter = makeQrSvg(sample, { ...style, level: 'L', centerText: '码' })
+    expect(withCenter.modules).toBe(high.modules)
+    expect(() => makeQrSvg('hello', { ...style, level: 'X' as QrStyle['level'] })).toThrow('容错等级')
   })
 })

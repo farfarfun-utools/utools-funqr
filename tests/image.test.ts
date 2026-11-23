@@ -154,6 +154,10 @@ describe('imageCanvas', () => {
     stubImageAndCanvas(6000, 5000)
     await expect(imageCanvas(new Blob([new Uint8Array([1])], { type: 'image/png' }))).rejects.toThrow('尺寸过大')
     expect(revokedUrls).toEqual(createdUrls)
+
+    stubImageAndCanvas(0, 100)
+    await expect(imageCanvas(new Blob([new Uint8Array([1])], { type: 'image/png' }))).rejects.toThrow('尺寸无效')
+    expect(revokedUrls).toEqual(createdUrls)
   })
 })
 

@@ -22,7 +22,7 @@ scope.onmessage = ({ data }) => {
     let result = null
     // 大码点会干扰 jsQR 的局部阈值，先缩小识别，再以原图保留密集二维码的细节。
     const edge = Math.max(data.width, data.height)
-    if (edge > 512) {
+    if (edge > 512 && typeof OffscreenCanvas !== 'undefined') {
       const source = new OffscreenCanvas(data.width, data.height)
       source.getContext('2d')!.putImageData(new ImageData(data.pixels as Uint8ClampedArray<ArrayBuffer>, data.width, data.height), 0, 0)
       for (const size of [512, 768]) {

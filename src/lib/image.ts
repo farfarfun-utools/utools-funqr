@@ -54,6 +54,7 @@ export async function imageCanvas(blob: Blob, maxEdge = 2048, options: { fillBac
   const url = URL.createObjectURL(blob)
   try {
     const image = await loadImage(url, signal)
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error('图片尺寸无效，请换一张图片')
     if (image.naturalWidth * image.naturalHeight > 24_000_000) throw new Error('图片尺寸过大，请裁剪至二维码附近后重试')
     const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight))
     const result = canvas(Math.max(1, Math.round(image.naturalWidth * scale)), Math.max(1, Math.round(image.naturalHeight * scale)))
@@ -224,7 +225,8 @@ export async function rasterize(svg: string, size: number, signal?: AbortSignal)
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
   try {
     const image = await loadImage(url, signal)
-    const result = canvas(size, Math.round(size * image.naturalHeight / image.naturalWidth))
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error('图片尺寸无效')
+    const result = canvas(size, Math.max(1, Math.round(size * image.naturalHeight / image.naturalWidth)))
     result.context.drawImage(image, 0, 0, result.element.width, result.element.height)
     return result.element
   } finally { URL.revokeObjectURL(url) }

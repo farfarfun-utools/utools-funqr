@@ -12,6 +12,7 @@ export const PRESETS = [
   { name: '青柠汽水', foreground: '#365c4e', background: '#f5fbf2', accent: '#6a662d' },
 ]
 export type Shape = 'square' | 'rounded' | 'dots' | 'pill' | 'diamond'
+export type ErrorLevel = 'L' | 'M' | 'Q' | 'H'
 export interface QrStyle {
   foreground: string
   background: string
@@ -19,6 +20,7 @@ export interface QrStyle {
   gradient: boolean
   shape: Shape
   logo: string
+  level?: ErrorLevel
   centerText?: string
   caption?: string
 }
@@ -42,12 +44,16 @@ export function makeQrSvg(text: string, style: QrStyle) {
   if (![style.foreground, style.background, style.accent].every(color => /^#[\da-f]{6}$/i.test(color))) throw new Error('请选择有效的颜色')
   if (contrast(style.foreground, style.background) < 4.5 || (style.gradient && contrast(style.accent, style.background) < 4.5)) throw new Error('颜色太接近了，请选择更深的码点或更浅的背景')
   if (!['square', 'rounded', 'dots', 'pill', 'diamond'].includes(style.shape)) throw new Error('不支持的码点样式')
+  if (style.level !== undefined && !['L', 'M', 'Q', 'H'].includes(style.level)) throw new Error('不支持的容错等级')
   if (style.logo && !/^data:image\/png;base64,[\da-z+/=]+$/i.test(style.logo)) throw new Error('Logo 图片无效，请重新上传')
   if (Array.from(style.centerText || '').length > 4) throw new Error('中心文字最多 4 个字')
   if (Array.from(style.caption || '').length > 24) throw new Error('底部文字最多 24 个字')
-  if (style.centerText && style.logo) throw new Error('中心文字和 Logo 只能选择一个')
+  const center = style.centerText?.trim()
+  const caption = style.caption?.trim()
+  if (center && style.logo) throw new Error('中心文字和 Logo 只能选择一个')
 
-  const qr = QRCode.create(text, { errorCorrectionLevel: 'H' })
+  const effectiveLevel: ErrorLevel = style.logo || center ? 'H' : (style.level ?? 'H')
+  const qr = QRCode.create(text, { errorCorrectionLevel: effectiveLevel })
   const size = qr.modules.size
   const edge = size + 8
   const cells: string[] = []
@@ -64,12 +70,10 @@ export function makeQrSvg(text: string, style: QrStyle) {
           : `<rect x="${x}" y="${y}" width="1" height="1"${shape === 'rounded' ? ' rx="0.28"' : shape === 'pill' ? ' rx="0.48"' : ' shape-rendering="crispEdges"'}/>`)
     }
   }
-  const center = style.centerText?.trim()
-  const caption = style.caption?.trim()
   const logoEdge = center ? Math.max(4, Math.floor(size * 0.21)) : Math.max(3, Math.floor(size * 0.15))
   const logoX = (edge - logoEdge) / 2
   const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!)
-  const centerContent = center ? `<text x="${edge / 2}" y="${edge / 2}" fill="${style.foreground}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="${Math.min(logoEdge * 0.55, logoEdge * 1.3 / Array.from(center).length)}" font-weight="700">${escape(center)}</text>` : ''
+  const centerContent = center ? `<text x="${edge / 2}" y="${edge / 2}" fill="${style.foreground}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="${Math.min(logoEdge * 0.55, logoEdge * 0.96 / Array.from(center).length)}" font-weight="700">${escape(center)}</text>` : ''
   const logo = style.logo || center ? `<rect x="${logoX - 0.65}" y="${logoX - 0.65}" width="${logoEdge + 1.3}" height="${logoEdge + 1.3}" rx="0.8" fill="${style.background}"/>${style.logo ? `<image href="${style.logo}" x="${logoX}" y="${logoX}" width="${logoEdge}" height="${logoEdge}"/>` : centerContent}` : ''
   const height = edge + (caption ? 7 : 0)
   const footer = caption ? `<text x="${edge / 2}" y="${edge + 3.2}" fill="${style.foreground}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="${Math.min(2.5, (edge - 8) / Array.from(caption).length)}" font-weight="600">${escape(caption)}</text>` : ''

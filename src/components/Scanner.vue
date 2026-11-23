@@ -2,6 +2,7 @@
 import { onUnmounted, ref } from 'vue'
 import Icon from './Icon.vue'
 import { clipboardImage, dataUrlToBlob, decodeImage, IMAGE_TYPES, saveBlob } from '../lib/image'
+import { textBytes } from '../lib/qr'
 
 defineOptions({ name: 'QrScanner' })
 
@@ -32,11 +33,23 @@ function chooseFile(event: Event) {
   if (input.files?.[0]) void scan(input.files[0])
   input.value = ''
 }
+function dragLeave(event: DragEvent) {
+  const current = event.currentTarget as HTMLElement | null
+  if (current && event.relatedTarget instanceof Node && current.contains(event.relatedTarget)) return
+  dragging.value = false
+}
 function drop(event: DragEvent) {
   dragging.value = false
   const file = event.dataTransfer?.files[0]
   if (file) void scan(file)
   else error.value = '请拖入本地图片文件'
+}
+function clearScan() {
+  controller?.abort()
+  busy.value = false
+  result.value = null
+  preview.value = ''
+  error.value = ''
 }
 function paste(event: ClipboardEvent) {
   const data = event.clipboardData
@@ -91,7 +104,7 @@ onUnmounted(() => { alive = false; controller?.abort() })
   <div class="scanner workspace">
     <section class="scan-source" aria-label="选择二维码图片">
       <div class="section-heading"><span class="step">01</span><h2>发现图中的信息</h2><span class="section-note">一张图片，就够了</span></div>
-      <button class="drop-zone" :class="{ dragging, 'has-image': preview }" :disabled="busy" @click="fileInput?.click()" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="drop">
+      <button class="drop-zone" :class="{ dragging, 'has-image': preview }" :disabled="busy" @click="fileInput?.click()" @dragover.prevent="dragging = true" @dragleave.prevent="dragLeave" @drop.prevent="drop">
         <img v-if="preview" :src="preview" alt="已识别的二维码图片" />
         <template v-else><span class="upload-symbol"><Icon :name="busy ? 'scan' : 'upload'" /></span><strong>{{ busy ? '正在寻找二维码…' : '拖入图片，读懂二维码' }}</strong><span>{{ busy ? '图片只在本机识别，请稍候' : '或点击此处选择一张图片' }}</span><small>PNG · JPG · WebP · GIF · BMP / 最大 20 MB</small></template>
         <span v-if="preview" class="replace-image"><Icon name="image" />点击换一张图片</span>
@@ -103,8 +116,8 @@ onUnmounted(() => { alive = false; controller?.abort() })
     </section>
     <section class="scan-result" aria-label="二维码识别结果">
       <div class="result-heading"><span>DECODED CONTENT</span><span v-if="result !== null" class="success-label"><Icon name="check" />识别成功</span></div>
-      <div v-if="result === null" class="empty-result"><Icon name="scan" /><h2>{{ busy ? '正在解码' : '信息，即将抵达' }}</h2><p>文字、链接，或是一句问候<br />识别后的内容会出现在这里</p></div>
-      <template v-else><label class="sr-only" for="scan-output">识别出的文本</label><textarea id="scan-output" :value="result" readonly spellcheck="false" /><div class="result-meta"><span>{{ result.length }} 个字符</span><button @click="exportText">保存文本</button></div></template>
+      <div v-if="result === null" class="empty-result" :class="{ 'is-error': !!error && !busy }"><Icon name="scan" /><h2>{{ busy ? '正在解码' : error ? '未能识别二维码' : '信息，即将抵达' }}</h2><p v-if="error && !busy">请确认图片中包含清晰完整的二维码<br />可裁剪至二维码附近后重试</p><p v-else>文字、链接，或是一句问候<br />识别后的内容会出现在这里</p></div>
+      <template v-else><label class="sr-only" for="scan-output">识别出的文本</label><textarea id="scan-output" :value="result" readonly spellcheck="false" /><div class="result-meta"><span>{{ result.length }} 个字符 · {{ textBytes(result) }} 字节</span><div class="result-meta-actions"><button @click="exportText">保存文本</button><button class="clear-scan" @click="clearScan">清空</button></div></div></template>
       <div class="result-actions"><button class="primary-button" :disabled="result === null" @click="copyText"><Icon name="copy" />复制内容</button><button class="secondary-button" :disabled="!result" @click="emit('generate', result!)">转为二维码 <Icon name="arrow" /></button></div>
       <p class="result-note"><Icon name="shield" />仅展示原始文本，不会自动打开链接</p>
     </section>

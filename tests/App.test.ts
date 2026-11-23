@@ -186,4 +186,12 @@ it('识别页支持通过 clipboardData.items 粘贴图片，且截图前清除�
   await vi.advanceTimersByTimeAsync(0)
   expect(decodeImage).toHaveBeenCalledWith(file, expect.any(AbortSignal))
   expect(app.get('#scan-output').element).toHaveProperty('value', 'hello')
+  expect(app.get('.result-meta').text()).toContain('5 字节')
+  await app.get('.clear-scan').trigger('click')
+  expect(app.find('#scan-output').exists()).toBe(false)
+
+  vi.mocked(decodeImage).mockRejectedValueOnce(new Error('没有发现二维码'))
+  window.dispatchEvent(pasteEvent)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(app.get('.empty-result.is-error').text()).toContain('未能识别二维码')
 })

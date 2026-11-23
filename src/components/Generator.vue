@@ -8,7 +8,8 @@ defineOptions({ name: 'QrGenerator' })
 
 const content = defineModel<string>({ required: true })
 const emit = defineEmits<{ notify: [text: string] }>()
-const style = reactive<QrStyle>({ ...PRESETS[1], gradient: false, shape: 'rounded', logo: '', centerText: '', caption: '' })
+const style = reactive<QrStyle>({ foreground: PRESETS[1].foreground, background: PRESETS[1].background, accent: PRESETS[1].accent, gradient: false, shape: 'rounded', logo: '', level: 'H', centerText: '', caption: '' })
+const hasCenterOverlay = computed(() => !!(style.logo || style.centerText?.trim()))
 const shapes: { value: Shape; label: string }[] = [{ value: 'square', label: '方块' }, { value: 'rounded', label: '圆角' }, { value: 'dots', label: '圆点' }, { value: 'pill', label: '胶囊' }, { value: 'diamond', label: '菱形' }]
 const size = ref(1024)
 const png = ref('')
@@ -62,7 +63,12 @@ watch([content, style, size], () => {
   }, 220)
 }, { deep: true, immediate: true })
 
-function setPreset(index: number) { Object.assign(style, PRESETS[index]) }
+function setPreset(index: number) {
+  const { foreground, background, accent } = PRESETS[index]
+  style.foreground = foreground
+  style.background = background
+  style.accent = accent
+}
 async function pasteText() {
   try {
     if (!navigator.clipboard?.readText) throw new Error('无法读取剪贴板，请使用 Ctrl / ⌘ + V 粘贴')
@@ -131,7 +137,7 @@ onUnmounted(() => { alive = false; clearTimeout(timer); controller?.abort() })
         <div class="control-row"><span class="control-label">自定义配色</span><div class="color-controls"><label><input v-model="style.foreground" type="color" aria-label="码点颜色" /><span>码点</span></label><label><input v-model="style.background" type="color" aria-label="背景颜色" /><span>背景</span></label><label class="gradient-toggle"><input v-model="style.gradient" type="checkbox" /><span>双色渐变</span></label><input v-if="style.gradient" v-model="style.accent" type="color" class="accent-color" aria-label="渐变颜色" /></div></div>
         <div class="control-row"><span class="control-label">中心 Logo <small>可选</small></span><div class="logo-controls"><label class="logo-upload"><img v-if="style.logo" :src="style.logo" alt="已选 Logo" /><Icon v-else name="image" /><span>{{ logoBusy ? '读取中…' : style.logo ? '更换图片' : '添加图片' }}</span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" :disabled="logoBusy" aria-label="上传中心 Logo" @change="uploadLogo" /></label><button v-if="style.logo" class="icon-button" aria-label="移除 Logo" @click="style.logo = ''"><Icon name="close" /></button></div></div>
       </div>
-      <details class="extra-controls"><summary>添加文字</summary><div class="extra-fields"><label for="center-text">中心短文字 <small>最多 4 字，与 Logo 二选一</small></label><input id="center-text" :value="style.centerText" maxlength="4" placeholder="如：喜、店名" @input="style.centerText = ($event.target as HTMLInputElement).value; if (style.centerText) style.logo = ''" /><label for="caption-text">底部说明文字 <small>最多 24 字</small></label><input id="caption-text" v-model="style.caption" maxlength="24" placeholder="如：扫码查看详情" /></div></details>
+      <details class="extra-controls"><summary>添加文字</summary><div class="extra-fields"><label for="center-text">中心短文字 <small>最多 4 字，与 Logo 二选一</small></label><input id="center-text" :value="style.centerText" maxlength="4" placeholder="如：喜、店名" @input="style.centerText = ($event.target as HTMLInputElement).value; if (style.centerText.trim()) style.logo = ''" /><label for="caption-text">底部说明文字 <small>最多 24 字</small></label><input id="caption-text" v-model="style.caption" maxlength="24" placeholder="如：扫码查看详情" /><label for="error-level">容错等级 <small>{{ hasCenterOverlay ? '使用 Logo 或中心文字时自动锁定高容错 H' : '长内容可调低以减少码点密度' }}</small></label><select id="error-level" :value="hasCenterOverlay ? 'H' : style.level" :disabled="hasCenterOverlay" @change="style.level = ($event.target as HTMLSelectElement).value as QrStyle['level']"><option value="H">高 · H（30%，默认）</option><option value="Q">较高 · Q（25%）</option><option value="M">中 · M（15%）</option><option value="L">低 · L（7%，码点最疏）</option></select></div></details>
       <p v-if="error" class="error-message" role="alert">{{ error }}</p>
       <p v-if="actionError" class="error-message" role="alert">{{ actionError }}</p>
     </section>
